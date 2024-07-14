@@ -16,14 +16,20 @@ public class JuicyBouncingBallGame : MonoBehaviour
     [SerializeField] private GameObject settingsScreen;
     [SerializeField] private GameObject shopScreen;
     [SerializeField] private Text coinsLable;
+    [SerializeField] private Image progress;
 
     [SerializeField] private GameObject endScreen;
+    [SerializeField] private GameObject[] stars;
+    [SerializeField] private GameObject winTitle;
+    [SerializeField] private GameObject loseTitle;
     [SerializeField] private Text endScoreLable;
     [SerializeField] private Text endBestLable;
+    [SerializeField] private GameObject nextBtn;
 
     [Header("Ingame")]
-    [SerializeField] private Platform[] platforms;
-    [SerializeField] private Transform blade;
+    [SerializeField] private SectorConstructor[] sectors;
+    [SerializeField] private Transform bounceRoot;
+    [SerializeField] private Transform bounce;
 
     private int Coins
     {
@@ -41,24 +47,44 @@ public class JuicyBouncingBallGame : MonoBehaviour
         set => PlayerPrefs.SetInt("Best", value);
     }
 
-    private int score;
+    private static int Score
+    {
+        get => PlayerPrefs.GetInt("Score", 0);
+        set => PlayerPrefs.SetInt("Score", value);
+    }
+
+    private static int Level
+    {
+        get => PlayerPrefs.GetInt("Level", 1);
+        set => PlayerPrefs.SetInt("Level", value);
+    }
+
+    public static int LevelCellsCount = 0;
+    public static int LevelMaxCellsCount => 10 + 6 * Level;
 
     public static float Speed;
+    public float ballHeight;
+
+    public const float CellsDistance = 3f;
+
+    public float BallStep => CellsDistance + 0.5f;
 
     // Start is called before the first frame update
     void Start()
     {
         ControlScreen.OnDragAction += OnControl;
-        Platform.OnTriggered += OnTriggered;
+        PlatformTrigger.OnTriggered += OnTriggered;
 
-        mainCamera.orthographicSize = 5 * ((float)Screen.width / Screen.height / (1080f / 1920f));
+        float coeff = ((float)Screen.height / Screen.width / (1920f / 1080f));
+        mainCamera.orthographicSize = 5 * coeff;
+        mainCamera.transform.position = new Vector3(0f, -coeff, -10f);
 
         bestLable.text = $"BEST SCORE:{Best}";
         coinsLable.text = Coins.ToString();
 
-        for(int i = 1; i < platforms.Length; i++)
+        for(int i = 1; i < sectors.Length; i++)
         {
-            platforms[i] = Instantiate(platforms[0], platforms[0].transform.parent);
+            sectors[i] = Instantiate(sectors[0], sectors[0].transform.parent);
         }
     }
 
@@ -70,34 +96,64 @@ public class JuicyBouncingBallGame : MonoBehaviour
             boosterTimer -= Time.deltaTime;
         }
 
-        Speed = Mathf.Lerp(Speed, (2f + score/10f + (boosterTimer > 0f ? 20f : 0f)) * (PauseActive ? 0f : 1f), Time.deltaTime);
+        Speed = Mathf.Lerp(Speed, (2f + Score/10f + (boosterTimer > 0f ? 20f : 0f)) * (PauseActive ? 0f : 1f), Time.deltaTime);
+
+        if (ballHeight > 0f)
+        {
+            ballHeight -= Speed * Time.deltaTime;
+
+            if (ballHeight < 0f)
+            {
+                Debug.Log("fall");
+                ShowEndScreen(false);
+            }
+        }
+
+        if (ballHeight > BallStep / 2f)
+        {
+            float multiplier = (BallStep / 2f - ballHeight % (BallStep / 2f)) / BallStep * 2f;
+            bounce.localPosition = Vector2.up * multiplier / 2f;
+            bounce.localScale = Vector2.one * (0.7f + 0.3f * multiplier);
+        }
+        else
+        {
+            float multiplier = ballHeight % (BallStep / 2f) / BallStep * 2f;
+            bounce.localPosition = Vector2.up * multiplier / 2f;
+            bounce.localScale = Vector2.one * (0.7f + 0.3f * multiplier);
+        }
     }
 
     public void StartGame()
     {
         Sounds.Instance.Click();
 
+        LevelCellsCount = 0;
+
         startScreen.SetActive(false);
         endScreen.SetActive(false);
 
-        for(int i = 0; i < platforms.Length; i++)
+        for(int i = 0; i < sectors.Length; i++)
         {
-            platforms[i].transform.position = new Vector2(
-                    Random.Range(Platform.MinBorder, Platform.MaxBorder), 
-                    9f + (i * 3f));
+            sectors[i].transform.position = new Vector2(0f, -0.9f + (i * CellsDistance));
 
-            platforms[i].SetRandom();
+            sectors[i].SetSector();
         }
 
-        score = 0;
-        scoreLable.text = $"SCORE: {score}";
+        Score = 0;
+        scoreLable.text = $"SCORE: {Score}";
 
         tutorial.SetActive(true);
         SetPause(false);
 
-        Vector2 pos = blade.position;
+        Vector2 pos = bounceRoot.position;
         pos.x = 0f;
-        blade.position = pos;
+        bounceRoot.position = pos;
+
+        ballHeight = BallStep;
+        boosterTimer = 0f;
+
+
+        SetProgress();
     }
 
     float boosterTimer;
@@ -130,7 +186,7 @@ public class JuicyBouncingBallGame : MonoBehaviour
         Sounds.Instance.Click();
     }
 
-    bool PauseActive;
+    bool PauseActive = true;
 
     public void SetPause(bool isPause)
     {
@@ -141,52 +197,103 @@ public class JuicyBouncingBallGame : MonoBehaviour
         }
     }
 
+    public void NextLevel()
+    {
+        Level++;
+
+        StartGame();
+    }
+
     private void OnControl(float horizontal)
     {
         tutorial.SetActive(false);
 
-        blade.Translate(Vector2.right * Time.deltaTime * horizontal * 0.5f);
+        bounceRoot.Translate(Vector2.right * Time.deltaTime * horizontal * 0.5f);
 
-        Vector2 pos = blade.position;
+        Vector2 pos = bounceRoot.position;
         pos.x = Mathf.Clamp(pos.x, -2f, 2f);
-        blade.position = pos;
+        bounceRoot.position = pos;
     }
 
-    private void OnTriggered(Platform platform)
+    private void OnTriggered(PlatformTrigger platform)
     {
+        Debug.Log($"Triggred {platform.Type}");
         switch(platform.Type)
         {
-            case Platform.PlatformType.bomb:
+            case PlatformTrigger.PlatformType.bomb:
                 if (boosterTimer > 0f) return;
 
+                ShowEndScreen(false);
+                break;
+            case PlatformTrigger.PlatformType.finish:
+                ShowEndScreen(true);
+                break;
+            default:
 
-                Sounds.Instance.Lose();
-                SetPause(true);
+                LevelCellsCount++;
+                SetProgress();
 
-                endScreen.SetActive(true);
+                ballHeight = BallStep;
 
-                if(score > Best)
+                Score++;
+                scoreLable.text = $"SCORE: {Score}";
+
+                if (platform.Type == PlatformTrigger.PlatformType.empty)
                 {
-                    Best = score;
-                    endBestLable.text = $"NEW RECORD!";
+                    Sounds.Instance.Score();
                 }
                 else
                 {
-                    endBestLable.text = $"BEST SCORE: {Best}";
+                    Sounds.Instance.Coin();
+                    Coins++;
                 }
-
-                endScoreLable.text = $"SCORE: {score}";
-                break;
-            case Platform.PlatformType.score:
-                score++;
-                scoreLable.text = $"SCORE: {score}";
-
-                Sounds.Instance.Score();
-                break;
-            case Platform.PlatformType.coin:
-                Sounds.Instance.Coin();
-                Coins++;
                 break;
         }
+    }
+
+    private void ShowEndScreen(bool isWin)
+    {
+        Sounds.Instance.Lose();
+        SetPause(true);
+
+
+        endScreen.SetActive(true);
+        winTitle.SetActive(isWin);
+        loseTitle.SetActive(!isWin);
+        
+        
+        if (isWin)
+        {
+            endScoreLable.text = $"LEVEL: {Level}";
+            endBestLable.text = $"SCORE: {Score}";
+        }
+        else
+        {
+            if (Score > Best)
+            {
+                Best = Score;
+                endBestLable.text = $"NEW RECORD!";
+            }
+            else
+            {
+                endBestLable.text = $"BEST SCORE: {Best}";
+            }
+
+            endScoreLable.text = $"SCORE: {Score}";
+
+            Score = 0;
+        }
+
+        for(int i = 0; i < stars.Length; i++)
+        {
+            stars[i].SetActive(LevelCellsCount > LevelMaxCellsCount / 3 * i || isWin);
+        }
+
+        nextBtn.SetActive(isWin);
+    }
+
+    private void SetProgress()
+    {
+        progress.fillAmount = LevelCellsCount / 1f / LevelMaxCellsCount;
     }
 }
