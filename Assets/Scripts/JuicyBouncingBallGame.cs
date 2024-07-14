@@ -77,7 +77,7 @@ public class JuicyBouncingBallGame : MonoBehaviour
 
         float coeff = ((float)Screen.height / Screen.width / (1920f / 1080f));
         mainCamera.orthographicSize = 5 * coeff;
-        mainCamera.transform.position = new Vector3(0f, -coeff, -10f);
+        mainCamera.transform.position = new Vector3(0f, coeff > 1? coeff : - coeff, -10f);
 
         bestLable.text = $"BEST SCORE:{Best}";
         coinsLable.text = Coins.ToString();
@@ -96,7 +96,7 @@ public class JuicyBouncingBallGame : MonoBehaviour
             boosterTimer -= Time.deltaTime;
         }
 
-        Speed = Mathf.Lerp(Speed, (2f + Score/10f + (boosterTimer > 0f ? 20f : 0f)) * (PauseActive ? 0f : 1f), Time.deltaTime);
+        Speed = Mathf.Lerp(Speed, (2f + LevelCellsCount/10f + (boosterTimer > 0f ? 20f : 0f)) * (PauseActive ? 0f : 1f), Time.deltaTime);
 
         if (ballHeight > 0f)
         {
@@ -125,6 +125,8 @@ public class JuicyBouncingBallGame : MonoBehaviour
 
     public void StartGame()
     {
+        BackgroundSetter.Instance.SetRandomBack();
+
         Sounds.Instance.Click();
 
         LevelCellsCount = 0;
@@ -139,7 +141,6 @@ public class JuicyBouncingBallGame : MonoBehaviour
             sectors[i].SetSector();
         }
 
-        Score = 0;
         scoreLable.text = $"SCORE: {Score}";
 
         tutorial.SetActive(true);
