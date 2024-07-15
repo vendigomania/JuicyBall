@@ -9,16 +9,16 @@ public class SectorConstructor : MonoBehaviour
     [SerializeField] private GhostPlatform ghost;
     [SerializeField] private MovingPlatform moving;
     [SerializeField] private FinishPlatform finish;
-
+    [SerializeField] private TramplinePLatform trampline;
 
     public void SetSector()
     {
-        if(JuicyBouncingBallGame.LevelCellsCount == JuicyBouncingBallGame.LevelMaxCellsCount - 2)
+        if(JuicyBouncingBallGame.LevelCellsCount == JuicyBouncingBallGame.LevelMaxCellsCount - 6)
         {
-            SwitchSector(4);
+            SwitchSector(5);
             finish.LoadCell();
         }
-        else if (JuicyBouncingBallGame.LevelCellsCount < JuicyBouncingBallGame.LevelMaxCellsCount - 2)
+        else if (JuicyBouncingBallGame.LevelCellsCount < JuicyBouncingBallGame.LevelMaxCellsCount - 6)
         {
             int random = Random.Range(0, 100);
 
@@ -36,9 +36,14 @@ public class SectorConstructor : MonoBehaviour
                 SwitchSector(2);
                 ghost.LoadCell();
             }
-            else
+            else if(random < 90)
             {
                 SwitchSector(3);
+            }
+            else
+            {
+                SwitchSector(4);
+                trampline.LoadCell();
             }
         }
         else
@@ -53,6 +58,7 @@ public class SectorConstructor : MonoBehaviour
         bomb.gameObject.SetActive(number == 1);
         ghost.gameObject.SetActive(number == 2);
         moving.gameObject.SetActive(number == 3);
-        finish.gameObject.SetActive(number == 4);
+        trampline.gameObject.SetActive(number == 4);
+        finish.gameObject.SetActive(number == 5);
     }
 }

@@ -15,6 +15,7 @@ public class PlatformTrigger : MonoBehaviour
         coin,
         bomb,
         finish,
+        trampline,
     }
 
 

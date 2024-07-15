@@ -30,8 +30,10 @@ public class JuicyBouncingBallGame : MonoBehaviour
     [SerializeField] private SectorConstructor[] sectors;
     [SerializeField] private Transform bounceRoot;
     [SerializeField] private Transform bounce;
+    [SerializeField] private BoxCollider2D ballCollider;
+    [SerializeField] private SpriteRenderer ballRenderer;
 
-    private int Coins
+    public int Coins
     {
         get => PlayerPrefs.GetInt("Coins", 0);
         set
@@ -109,18 +111,11 @@ public class JuicyBouncingBallGame : MonoBehaviour
             }
         }
 
-        if (ballHeight > BallStep / 2f)
-        {
-            float multiplier = (BallStep / 2f - ballHeight % (BallStep / 2f)) / BallStep * 2f;
-            bounce.localPosition = Vector2.up * multiplier / 2f;
-            bounce.localScale = Vector2.one * (0.7f + 0.3f * multiplier);
-        }
-        else
-        {
-            float multiplier = ballHeight % (BallStep / 2f) / BallStep * 2f;
-            bounce.localPosition = Vector2.up * multiplier / 2f;
-            bounce.localScale = Vector2.one * (0.7f + 0.3f * multiplier);
-        }
+        ballCollider.enabled = ballHeight < 1f;
+
+        float multiplier = ballHeight * 0.4f;
+        bounce.localPosition = Vector2.Lerp(bounce.localPosition, Vector2.up * multiplier / 2f, Time.deltaTime * 10f);
+        bounce.localScale = Vector2.Lerp(bounce.localScale, Vector2.one * (0.7f + 0.3f * multiplier), Time.deltaTime * 10f);
     }
 
     public void StartGame()
@@ -153,6 +148,7 @@ public class JuicyBouncingBallGame : MonoBehaviour
         ballHeight = BallStep;
         boosterTimer = 0f;
 
+        if(SkinControlButton.choicedSkin != null ) ballRenderer.sprite = SkinControlButton.choicedSkin;
 
         SetProgress();
     }
@@ -234,12 +230,12 @@ public class JuicyBouncingBallGame : MonoBehaviour
                 LevelCellsCount++;
                 SetProgress();
 
-                ballHeight = BallStep;
+                ballHeight = BallStep * (platform.Type == PlatformTrigger.PlatformType.trampline? 2 : 1);
 
                 Score++;
                 scoreLable.text = $"SCORE: {Score}";
 
-                if (platform.Type == PlatformTrigger.PlatformType.empty)
+                if (platform.Type != PlatformTrigger.PlatformType.coin)
                 {
                     Sounds.Instance.Score();
                 }
@@ -254,7 +250,9 @@ public class JuicyBouncingBallGame : MonoBehaviour
 
     private void ShowEndScreen(bool isWin)
     {
-        Sounds.Instance.Lose();
+        if (isWin) Sounds.Instance.Win();
+        else Sounds.Instance.Lose();
+
         SetPause(true);
 
 
@@ -287,7 +285,7 @@ public class JuicyBouncingBallGame : MonoBehaviour
 
         for(int i = 0; i < stars.Length; i++)
         {
-            stars[i].SetActive(LevelCellsCount > LevelMaxCellsCount / 3 * i || isWin);
+            stars[i].SetActive(LevelCellsCount > LevelMaxCellsCount / 3 * (i + 1) || isWin);
         }
 
         nextBtn.SetActive(isWin);

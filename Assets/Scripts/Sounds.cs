@@ -9,6 +9,7 @@ public class Sounds : MonoBehaviour
     [SerializeField] private AudioSource boost;
     [SerializeField] private AudioSource coin;
     [SerializeField] private AudioSource score;
+    [SerializeField] private AudioSource win;
 
     public static Sounds Instance { get; private set; }
 
@@ -25,6 +26,7 @@ public class Sounds : MonoBehaviour
         boost.volume = vol;
         coin.volume = vol;
         score.volume = vol;
+        win.volume = vol;
     }
 
     public void Click()
@@ -50,5 +52,10 @@ public class Sounds : MonoBehaviour
     public void Score()
     {
         score.Play();
+    }
+
+    public void Win()
+    {
+        win.Play();
     }
 }
